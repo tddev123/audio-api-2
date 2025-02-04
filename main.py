@@ -32,7 +32,7 @@ class VideoRequest(BaseModel):
     format: str
     cookies: str  # Cookies passed as a string from frontend
 
-@app.post("/api/convert")  # Ensure you're using the correct API endpoint
+@app.post("/convert")  # Ensure you're using the correct API endpoint
 async def convert_video(request: VideoRequest, cookies: Request):
     try:
         # Get cookies from the request object (using cookies passed from frontend)
