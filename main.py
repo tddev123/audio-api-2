@@ -47,9 +47,14 @@ def create_cookies_file(cookies_dict: dict) -> str:
     cookies_file = os.path.join(DOWNLOADS_DIR, f"cookies_{uuid.uuid4()}.txt")
     try:
         with open(cookies_file, 'w') as f:
+            # Write the required header for compatibility
+            f.write("# Netscape HTTP Cookie File\n")
             for name, value in cookies_dict.items():
-                # Format: domain\tTRUE\tpath\tTRUE\texpiry\tname\tvalue
-                f.write(f".youtube.com\tTRUE\t/\tTRUE\t{2147483647}\t{name}\t{value}\n")
+                # Correct format with numeric flags:
+                # domain, include_subdomains, path, secure, expiry, name, value
+                f.write(
+                    f".youtube.com\tTRUE\t/\t1\t{2147483647}\t{name}\t{value}\n"
+                )
         return cookies_file
     except Exception as e:
         print(f"Error creating cookies file: {e}")
