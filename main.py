@@ -12,47 +12,57 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,  # Allow credentials (cookies)
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Test endpoint
+@app.get("/")
+async def health_check():
+    return {"status": "API is running"}  # ✅ Verify this first
+
 # Ensure downloads directory exists
 os.makedirs("downloads", exist_ok=True)
-
 COOKIES_FILE = "youtube_cookies.txt"
 
 class VideoRequest(BaseModel):
     url: str
     format: str
-    cookies: str  # Expect cookies from frontend
+    cookies: str  # Cookies passed as a string from frontend
 
 @app.post("/api/convert")
 async def convert_video(request: VideoRequest):
     try:
-        # Save user-provided cookies
+        # Save cookies to file
         with open(COOKIES_FILE, "w") as f:
             f.write(request.cookies)
 
-        # Generate a unique filename
+        # Generate unique output path
         output_filename = f"{uuid.uuid4()}.{request.format}"
         output_path = os.path.join("downloads", output_filename)
 
-        # yt-dlp options
+        # Configure yt-dlp
         ydl_opts = {
             "format": "bestaudio/best",
-            "postprocessors": [
-                {"key": "FFmpegExtractAudio", "preferredcodec": request.format}
-            ],
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": request.format
+            }],
             "outtmpl": output_path,
-            "cookies": COOKIES_FILE,  # Pass cookies
+            "cookiefile": COOKIES_FILE,  # Key is "cookiefile", not "cookies"
         }
 
-        # Download video
+        # Download and convert
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([request.url])
 
-        return FileResponse(path=output_path, filename=output_filename)
+        # Return the file
+        return FileResponse(
+            path=output_path,
+            filename=output_filename,
+            media_type="application/octet-stream"
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
