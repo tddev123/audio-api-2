@@ -31,7 +31,7 @@ class VideoRequest(BaseModel):
     format: str
     cookies: str  # Cookies passed as a string from frontend
 
-@app.post("/api/convert")
+@app.post("/convert")
 async def convert_video(request: VideoRequest):
     try:
         # Save cookies to file
