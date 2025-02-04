@@ -1,10 +1,9 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import yt_dlp
 import os
-from pathlib import Path
 import uuid
 
 app = FastAPI()
@@ -18,49 +17,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create downloads folder
-if not os.path.exists("downloads"):
-    os.makedirs("downloads")
+# Ensure downloads directory exists
+os.makedirs("downloads", exist_ok=True)
 
-class VideoURL(BaseModel):
+COOKIES_FILE = "youtube_cookies.txt"
+
+class VideoRequest(BaseModel):
     url: str
+    format: str
+    cookies: str  # Expect cookies from frontend
 
-@app.get("/")
-def read_root():
-    return {"status": "alive"}
-
-@app.post("/convert")
-async def convert_video(video: VideoURL, request: Request):
+@app.post("/api/convert")
+async def convert_video(request: VideoRequest):
     try:
-        # Extract cookies from the request
-        cookies = request.cookies
-        if not cookies.get("session_cookie"):
-            raise HTTPException(status_code=400, detail="Cookies are required")
+        # Save user-provided cookies
+        with open(COOKIES_FILE, "w") as f:
+            f.write(request.cookies)
 
-        # Check if the cookies are valid (e.g., simulate a YouTube request)
+        # Generate a unique filename
+        output_filename = f"{uuid.uuid4()}.{request.format}"
+        output_path = os.path.join("downloads", output_filename)
+
+        # yt-dlp options
         ydl_opts = {
-            'cookies': cookies,  # Use cookies for YouTube request
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'wav',
-            }],
-            'outtmpl': "downloads/%(id)s.%(ext)s",
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {"key": "FFmpegExtractAudio", "preferredcodec": request.format}
+            ],
+            "outtmpl": output_path,
+            "cookies": COOKIES_FILE,  # Pass cookies
         }
 
-        # Test the YouTube video URL with the provided cookies
+        # Download video
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video.url])
+            ydl.download([request.url])
 
-        # Create unique filename
-        filename = f"{uuid.uuid4()}.wav"
-        output_path = f"downloads/{filename}"
-
-        return FileResponse(
-            path=output_path,
-            filename=filename,
-            media_type="audio/wav"
-        )
+        return FileResponse(path=output_path, filename=output_filename)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
