@@ -12,7 +12,7 @@ app = FastAPI()
 # Enable CORS with more specific settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001, https://tool-kit-git-new-changes-1-lilbubs-projects.vercel.app"],  # Add your frontend URLs
+    allow_origins=["*"],  # Add your frontend URLs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
